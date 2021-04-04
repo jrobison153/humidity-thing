@@ -1,0 +1,28 @@
+{
+  "name": "general-iot-agent",
+  "version": "1.0.0",
+  "description": "General purpose IoT Job Agent for Device Updates",
+  "main": "index.js",
+  "author": "Justin Robison",
+  "license": "MIT",
+  "private": false,
+  "engines": {
+    "node": ">=14.16.0 < 15"
+  },
+  "bin": {
+    "humidity-thing": "bin/run"
+  },
+  "scripts": {
+    "lint": "./node_modules/.bin/eslint \"src/**/*.js\" \"test-*/**/*.js\" ",
+    "pre-commit": "yarn lint && yarn test",
+    "synth": "node ./scripts/synth.js",
+    "test": "yarn test:unit && yarn test:acceptance",
+    "test:acceptance": "jest test-acceptance",
+    "test:unit": "jest test-unit"
+  },
+  "devDependencies": {
+    "eslint": "^7.23.0",
+    "eslint-config-google": "^0.14.0",
+    "jest": "^26.6.3"
+  }
+}

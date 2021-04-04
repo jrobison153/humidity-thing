@@ -1,0 +1,13 @@
+env:
+  browser: true
+  es2021: true
+extends:
+  - google
+parserOptions:
+  ecmaVersion: 11
+  sourceType: module
+rules: {
+  max-len: ['error', {'code': 120}],
+  padded-blocks: off,
+  complexity: ["error", 5]
+}
