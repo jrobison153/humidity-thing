@@ -1,8 +1,8 @@
 {
-  "name": "general-iot-agent",
+  "name": "humidity-thing",
   "version": "1.0.0",
   "description": "General purpose IoT Job Agent for Device Updates",
-  "main": "index.js",
+  "main": "src/index.js",
   "author": "Justin Robison",
   "license": "MIT",
   "private": false,
@@ -12,6 +12,10 @@
   "bin": {
     "humidity-thing": "bin/run"
   },
+  "files": [
+    "/bin",
+    "/src"
+  ],
   "scripts": {
     "lint": "./node_modules/.bin/eslint \"src/**/*.js\" \"test-*/**/*.js\" ",
     "pre-commit": "yarn lint && yarn test",
@@ -21,8 +25,19 @@
     "test:unit": "jest test-unit"
   },
   "devDependencies": {
+    "@oclif/test": "^1.2.8",
+    "chai": "^4.3.4",
     "eslint": "^7.23.0",
     "eslint-config-google": "^0.14.0",
-    "jest": "^26.6.3"
+    "jest": "^26.6.3",
+    "rimraf": "^3.0.2"
+  },
+  "dependencies": {
+    "@oclif/command": "^1",
+    "@oclif/config": "^1",
+    "@oclif/plugin-help": "^3"
+  },
+  "oclif": {
+    "bin": "humidity-thing"
   }
 }
