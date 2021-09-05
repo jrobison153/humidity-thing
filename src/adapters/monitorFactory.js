@@ -9,21 +9,44 @@ const factory = () => {
   let _monitor;
   let _journal = [];
 
-  const _createBroker = async (brokerId) => {
+  const _validateRequiredBrokerOptions = (options) => {
+
+    const brokerOptions = {};
+
+    if (!options.tlsCertPath) {
+      throw new Error('Required option tlsCertPath missing');
+    }
+
+    if (!options.tlsKeyPath) {
+      throw new Error('Required option tlsKeyPath missing');
+    }
+
+    brokerOptions.tlsCertPath = options.tlsCertPath;
+    brokerOptions.tlsKeyPath = options.tlsKeyPath;
+
+    return brokerOptions;
+  };
+
+  const _createBroker = async (brokerId, options) => {
 
     let theBroker;
+    let brokerOptions = {};
+
     if (brokerId === 'test') {
 
       theBroker = testBroker;
 
     } else if (brokerId === 'mqtt') {
 
+      brokerOptions = _validateRequiredBrokerOptions(options);
       theBroker = mqttBroker;
     } else {
       throw new Error(`Invalid Broker Id '${brokerId}'`);
     }
 
-    return await theBroker();
+    brokerOptions.logFile = options.logFile;
+
+    return await theBroker(brokerOptions);
   };
 
   const _createSensor = async (sensorId) => {
@@ -44,15 +67,23 @@ const factory = () => {
 
   return {
 
-    create: async (brokerId, sensorId) => {
+    /**
+     *
+     * @param{string} brokerId
+     * @param{string} sensorId
+     * @param{object }options
+     * @return {Promise<*>}
+     */
+    create: async (brokerId, sensorId, options = {}) => {
 
       _journal.push({
         command: 'create',
         brokerId,
         sensorId,
+        options,
       });
 
-      const initializedBroker = await _createBroker(brokerId);
+      const initializedBroker = await _createBroker(brokerId, options);
       const initializedSensor = await _createSensor(sensorId);
 
       if (_monitor === undefined) {

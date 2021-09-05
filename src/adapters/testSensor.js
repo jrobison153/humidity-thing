@@ -11,5 +11,12 @@ module.exports = async () => {
   return {
 
     id: () => SENSOR_ID,
+
+    read: async () => {
+
+      return {
+        humidity: 54.3,
+      };
+    },
   };
 };

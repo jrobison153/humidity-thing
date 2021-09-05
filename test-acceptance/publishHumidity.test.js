@@ -4,6 +4,8 @@ const path = require('path');
 const os = require('os');
 const rimraf = require('rimraf');
 
+const timer = (ms) => new Promise((res) => setTimeout(res, ms));
+
 const _createTempFile = () => {
 
   return new Promise((resolve, reject) => {
@@ -71,6 +73,8 @@ describe('Publish Humidity Acceptance Tests', () => {
 
     let humidityThingProcess;
     let tempPublicationLogFile;
+    let stdOutBuffer;
+    let stdErrBuffer;
 
     beforeAll(async () => {
 
@@ -78,31 +82,44 @@ describe('Publish Humidity Acceptance Tests', () => {
 
       const binLocation = require.resolve('../bin/run');
       const args = [
-        '--broker',
-        'test',
-        '--sensor',
-        'test',
-        '--log-publications-file',
-        tempPublicationLogFile,
+        'aThing',
+        'myTopic',
+        '--broker=test',
+        '--sensor=test',
+        '--sensor-period=10',
+        `--log-publications-file=${tempPublicationLogFile}`,
       ];
+
+      stdOutBuffer = '';
+      stdErrBuffer = '';
 
       humidityThingProcess = childProcess.spawn(binLocation, args);
 
+      humidityThingProcess.on('error', (err) => {
+
+        stdErrBuffer = `${stdErrBuffer} ${err}`;
+      });
+
       humidityThingProcess.stderr.on('data', (data) => {
-        console.log(`Humidity process stderr: ${data}`);
+        stdErrBuffer = `${stdErrBuffer} ${data}`;
       });
 
       humidityThingProcess.stdout.on('data', (data) => {
-        console.log(`Humidity process stdout: ${data}`);
+        stdOutBuffer = `${stdOutBuffer} ${data}`;
       });
 
       humidityThingProcess.on('close', (code) => {
 
-        console.log(`Humidity process ended with code ${code}`);
+        stdOutBuffer = `\nHumidity process ended with code ${code}\n`;
       });
+
+      await timer(500);
     });
 
     afterAll(async () => {
+
+      console.log(stdOutBuffer);
+      console.log(stdErrBuffer);
 
       humidityThingProcess.kill('SIGTERM');
 
@@ -112,11 +129,9 @@ describe('Publish Humidity Acceptance Tests', () => {
 
     test('Then the current humidity value is published', async () => {
 
-      const expectedHumidity = 54.3;
+      const rawPublishedData = await readFile(tempPublicationLogFile);
 
-      const publishedData = await readFile(tempPublicationLogFile);
-
-      expect(publishedData[0].humidity).toEqual(expectedHumidity);
+      expect(rawPublishedData).toMatch(/.*"humidity":\s*54\.3.*/);
     });
   });
 });

@@ -11,5 +11,9 @@ module.exports = async () => {
   return {
 
     id: () => SENSOR_ID,
+
+    read: () => {
+      throw new Error('dht22Sensor.read: Implement me please');
+    },
   };
 };
