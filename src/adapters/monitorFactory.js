@@ -1,3 +1,4 @@
+const clone = require('clone');
 const testBroker = require('./testBroker');
 const mqttBroker = require('./mqttBroker');
 const testSensor = require('./testSensor');
@@ -8,6 +9,29 @@ const factory = () => {
 
   let _monitor;
   let _journal = [];
+
+  const TEST_SENSOR = 'test';
+  const DHT22_SENSOR = 'dht22';
+  const TEST_BROKER = 'test';
+  const MQTT_BROKER = 'mqtt';
+
+  const VALID_SENSOR_IDS = [TEST_SENSOR, DHT22_SENSOR];
+
+  const VALID_BROKER_IDS = [TEST_BROKER, MQTT_BROKER];
+
+  const _defaultSensorImpls = {
+    [TEST_SENSOR]: testSensor,
+    [DHT22_SENSOR]: dht22Sensor,
+  };
+
+  const _defaultBrokerImpls = {
+    [TEST_BROKER]: testBroker,
+    [MQTT_BROKER]: mqttBroker,
+  };
+
+  let _sensorImpls = clone(_defaultSensorImpls);
+
+  let _brokerImpls = clone(_defaultBrokerImpls);
 
   const _validateRequiredBrokerOptions = (options) => {
 
@@ -32,14 +56,13 @@ const factory = () => {
     let theBroker;
     let brokerOptions = {};
 
-    if (brokerId === 'test') {
+    if (VALID_BROKER_IDS.indexOf(brokerId) >= 0) {
 
-      theBroker = testBroker;
+      theBroker = _brokerImpls[brokerId];
 
-    } else if (brokerId === 'mqtt') {
-
-      brokerOptions = _validateRequiredBrokerOptions(options);
-      theBroker = mqttBroker;
+      if (brokerId === 'mqtt') {
+        brokerOptions = _validateRequiredBrokerOptions(options);
+      }
     } else {
       throw new Error(`Invalid Broker Id '${brokerId}'`);
     }
@@ -52,12 +75,10 @@ const factory = () => {
   const _createSensor = async (sensorId) => {
 
     let theSensor;
-    if (sensorId === 'test') {
 
-      theSensor = testSensor;
-    } else if (sensorId === 'dht22') {
+    if (VALID_SENSOR_IDS.indexOf(sensorId) >= 0) {
 
-      theSensor = dht22Sensor;
+      theSensor = _sensorImpls[sensorId];
     } else {
       throw new Error(`Invalid Sensor Id '${sensorId}'`);
     }
@@ -66,6 +87,40 @@ const factory = () => {
   };
 
   return {
+
+    resetSensors: () => {
+
+      _sensorImpls = clone(_defaultSensorImpls);
+    },
+
+    resetBrokers: () => {
+
+      _brokerImpls = clone(_defaultBrokerImpls);
+    },
+
+    setBroker: (id, impl) => {
+
+      if (VALID_BROKER_IDS.indexOf(id) >= 0) {
+
+        _brokerImpls[id] = impl;
+      } else {
+        throw new Error(`Invalid identifier '${id}', cannot set factory implementation`);
+      }
+    },
+
+    setSensor: (id, impl) => {
+
+      if (VALID_SENSOR_IDS.indexOf(id) >= 0) {
+
+        _sensorImpls[id] = impl;
+      } else {
+        throw new Error(`Invalid identifier '${id}', cannot set factory implementation`);
+      }
+    },
+
+    getBroker: (id) => _brokerImpls[id],
+
+    getSensor: (id) => _sensorImpls[id],
 
     /**
      *

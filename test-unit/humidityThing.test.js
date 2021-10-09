@@ -156,6 +156,11 @@ describe('humidityThing Tests', () => {
 
       expect(flags['tls-key-path']).toBeDefined();
     });
+
+    test('Then the  flag is defined', ()=> {
+
+      expect(flags['tls-key-path']).toBeDefined();
+    });
   });
 
   describe('When running the command', () => {
@@ -163,7 +168,7 @@ describe('humidityThing Tests', () => {
     oclifTest
         .stdout()
         .stderr()
-        .do(() => cmd.run(['aTopicName', 'aThingName', '--broker', 'test']))
+        .do(() => cmd.run(['aTopicName', 'aThingName', '--broker', 'test', '--sensor', 'test']))
         .it('Then the monitor factory creates the monitor with the specified broker', () => {
 
           expect(monitorFactory.journalEntry(0)).toMatchObject({
@@ -255,7 +260,7 @@ describe('humidityThing Tests', () => {
     oclifTest
         .stdout()
         .stderr()
-        .do(() => cmd.run(['aThingName', 'aTopicName', '--broker', 'test']))
+        .do(() => cmd.run(['aThingName', 'aTopicName', '--broker', 'test', '--sensor', 'test']))
         .it('Then the monitor is started', () => {
 
           expect(aMonitorSpy.startCalled()).toEqual(true);

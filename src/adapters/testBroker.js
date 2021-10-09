@@ -15,6 +15,23 @@ module.exports = async (options, fileSystem = fs) => {
   const _options = options;
   let _logFilePath;
 
+  const _createTemporaryLogFile = (resolve, reject) => {
+
+    const tempDirPrefix = os.tmpdir();
+    const fullPrefix = path.join(tempDirPrefix, 'test-broker-');
+
+    fileSystem.mkdtemp(fullPrefix, (err, dir) => {
+
+      if (err) {
+        reject(Error('Failure creating temp directory for test broker log'));
+      } else {
+
+        _logFilePath = path.join(dir, 'test_broker.log');
+        resolve();
+      }
+    });
+  };
+
   return {
 
     connect: async () => {
@@ -27,24 +44,12 @@ module.exports = async (options, fileSystem = fs) => {
           resolve();
         } else {
 
-          const tempDirPrefix = os.tmpdir();
-          const fullPrefix = path.join(tempDirPrefix, 'test-broker-');
-
-          fileSystem.mkdtemp(fullPrefix, (err, dir) => {
-
-            if (err) {
-              reject(Error('Failure creating temp directory for test broker log'));
-            } else {
-
-              _logFilePath = path.join(dir, 'test_broker.log');
-              resolve();
-            }
-          });
+          _createTemporaryLogFile(resolve, reject);
         }
       });
     },
 
-    createOptions: () => clone(_options),
+    options: () => clone(_options),
 
     id: () => BROKER_ID,
 
