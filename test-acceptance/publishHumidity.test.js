@@ -78,6 +78,7 @@ describe('Publish Humidity Acceptance Tests', () => {
 
     beforeAll(async () => {
 
+
       tempPublicationLogFile = await _createTempFile();
 
       const binLocation = require.resolve('../bin/run');
@@ -85,7 +86,8 @@ describe('Publish Humidity Acceptance Tests', () => {
         'aThing',
         'myTopic',
         '--broker=test',
-        '--sensor=test',
+        '--sensor=dht22',
+        `--sensor-script-path=${testSensorScriptPath}`,
         '--sensor-period=10',
         `--log-publications-file=${tempPublicationLogFile}`,
       ];

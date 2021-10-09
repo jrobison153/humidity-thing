@@ -1,10 +1,5 @@
 const clone = require('clone');
-
-const msTime = {
-  timer: (ms) => new Promise((res) => setTimeout(res, ms)),
-
-  now: () => Date.now(),
-};
+const msTime = require('../adapters/time');
 
 const SUCCESS = 0;
 const FAILURE = 1;

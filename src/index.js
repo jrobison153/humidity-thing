@@ -25,13 +25,13 @@ class HumidityThingCommand extends Command {
     const {flags} = this.parse(HumidityThingCommand);
     const {args} = this.parse(HumidityThingCommand);
 
-    const creatOptions = {
+    const createOptions = {
       logFile: flags['log-publications-file'],
       tlsCertPath: flags['tls-cert-path'],
       tlsKeyPath: flags['tls-key-path'],
     };
 
-    const monitor = await monitorFactory.create(flags.broker, flags.sensor, creatOptions);
+    const monitor = await monitorFactory.create(flags.broker, flags.sensor, createOptions);
 
     const monitorOptions = {
       sensorPeriod: flags['sensor-period'],

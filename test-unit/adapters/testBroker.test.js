@@ -1,3 +1,4 @@
+const clone = require('clone');
 const os = require('os');
 const path = require('path');
 const testBroker = require('../../src/adapters/testBroker');
@@ -207,6 +208,39 @@ describe('Test Broker Tests', () => {
 
         expect(publishedData).toEqual(data);
       });
+    });
+  });
+
+  describe('When options are provided', () => {
+
+    test('Then a copy of the options can be retrieved', async () => {
+
+      const originalOptions = {
+        a: 'b',
+        c: 'd',
+      };
+
+      const originalOptionsCopy = clone(originalOptions);
+
+      broker = await testBroker(originalOptions, aFileSystemSpy);
+
+      const theOptions = broker.options();
+
+      theOptions.a = 'attempting to change value on original object';
+
+      const retrievedOptions = broker.options();
+
+      expect(originalOptionsCopy).toEqual(retrievedOptions);
+    });
+  });
+
+  describe('When retrieving the id', () => {
+
+    test('Then it is returned', async () => {
+
+      broker = await testBroker({}, aFileSystemSpy);
+
+      expect(broker.id()).toEqual('test');
     });
   });
 });

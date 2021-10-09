@@ -19,7 +19,7 @@ module.exports = async (options) => {
       throw new Error('mqttBroker.connect: Implement me!');
     },
 
-    createOptions: () => clone(_options),
+    options: () => clone(_options),
 
     id: () => BROKER_ID,
 
