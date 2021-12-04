@@ -16,10 +16,11 @@ const monitorSpy = (broker, sensor) => {
 
 const dummySensor = (id) => {
 
-  return async () => {
+  return async (sensorScriptPath) => {
 
     return {
       id: () => id,
+      sensorScriptPath,
     };
   };
 };
@@ -291,10 +292,23 @@ describe('monitorFactory tests', () => {
 
     describe('And the dht22 sensor is specified', () => {
 
-      test('Then the initialized dht22 sensor is provided as a constructor parameter', async () => {
+      beforeEach(async () => {
 
-        monitor = await monitorFactory.create('test', 'dht22', {});
+        const options = {
+          sensorScriptPath: '/some/path/script.py',
+        };
+
+        monitor = await monitorFactory.create('test', 'dht22', options);
+      });
+
+      test('Then the initialized dht22 sensor is provided as a constructor parameter', () => {
+
         expect(monitor.providedSensor().id()).toEqual('dummyDht22Sensor');
+      });
+
+      test('Then the sensorScriptPath is provided as a constructor parameter', () => {
+
+        expect(monitor.providedSensor().sensorScriptPath).toEqual('/some/path/script.py');
       });
     });
 

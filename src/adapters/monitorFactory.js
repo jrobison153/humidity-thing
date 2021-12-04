@@ -33,6 +33,7 @@ const factory = () => {
 
   let _brokerImpls = clone(_defaultBrokerImpls);
 
+  // TODO these validations should be moved to the MQTT broker as part of construction
   const _validateRequiredBrokerOptions = (options) => {
 
     const brokerOptions = {};
@@ -72,7 +73,7 @@ const factory = () => {
     return await theBroker(brokerOptions);
   };
 
-  const _createSensor = async (sensorId) => {
+  const _createSensor = async (sensorId, options) => {
 
     let theSensor;
 
@@ -83,7 +84,7 @@ const factory = () => {
       throw new Error(`Invalid Sensor Id '${sensorId}'`);
     }
 
-    return await theSensor();
+    return await theSensor(options.sensorScriptPath);
   };
 
   return {
@@ -123,11 +124,18 @@ const factory = () => {
     getSensor: (id) => _sensorImpls[id],
 
     /**
+     * Creates a monitor configured to use the specified broker and sensor implementations.
      *
-     * @param{string} brokerId
-     * @param{string} sensorId
+     * @param{string} brokerId - valid values ['test', 'mqtt']
+     * @param{string} sensorId - valid values ['test', 'dht22']
+     *
      * @param{object }options
-     * @return {Promise<*>}
+     *  logFile - String: path to log file
+     *  tlsCertPath - String: path to the tls public certificate for the mqtt broker
+     *  tlsKeyPath - String: path to the tls private key for the mqtt broker
+     *  sensorScriptPath - String: path to the dht22 sensor Python 3 script,
+     *
+     * @return {Promise<Monitor>}
      */
     create: async (brokerId, sensorId, options = {}) => {
 
@@ -139,7 +147,7 @@ const factory = () => {
       });
 
       const initializedBroker = await _createBroker(brokerId, options);
-      const initializedSensor = await _createSensor(sensorId);
+      const initializedSensor = await _createSensor(sensorId, options);
 
       if (_monitor === undefined) {
         _monitor = defaultMonitor;

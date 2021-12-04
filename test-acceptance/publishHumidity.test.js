@@ -81,6 +81,7 @@ describe('Publish Humidity Acceptance Tests', () => {
 
       tempPublicationLogFile = await _createTempFile();
 
+      const testSensorScriptPath = require.resolve('./scripts/test_sensor_script.py');
       const binLocation = require.resolve('../bin/run');
       const args = [
         'aThing',
@@ -133,7 +134,7 @@ describe('Publish Humidity Acceptance Tests', () => {
 
       const rawPublishedData = await readFile(tempPublicationLogFile);
 
-      expect(rawPublishedData).toMatch(/.*"humidity":\s*54\.3.*/);
+      expect(rawPublishedData).toMatch(/.*"humidity-percentage":\s*54\.3.*/);
     });
   });
 });

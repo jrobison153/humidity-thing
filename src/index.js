@@ -29,6 +29,7 @@ class HumidityThingCommand extends Command {
       logFile: flags['log-publications-file'],
       tlsCertPath: flags['tls-cert-path'],
       tlsKeyPath: flags['tls-key-path'],
+      sensorScriptPath: flags['sensor-script-path'],
     };
 
     const monitor = await monitorFactory.create(flags.broker, flags.sensor, createOptions);
@@ -74,6 +75,12 @@ HumidityThingCommand.flags = {
   'sensor-period': flags.string({
     default: 60000,
     description: 'Time between sensor readings in milliseconds',
+  }),
+
+  'sensor-script-path': flags.string({
+    default: '/usr/local/etc/sensor/sensor.py',
+    description: 'Required path to a Python 3 script that will interact with the dht22 sensor.' +
+        'This is a required field if dht22 is selected as the sensor',
   }),
 
   'tls-cert-path': flags.string({
