@@ -32,6 +32,21 @@ const monitorSpy = () => {
   };
 };
 
+const ARG_V = [
+  'aThingName',
+  'aTopicName',
+  '--sensor',
+  'test',
+  '--tls-key-path',
+  '/some/key/path',
+  '--tls-cert-path',
+  '/some/cert/path',
+  '--log-publications-file',
+  '/some/path/to/out.log',
+  '--sensor-script-path',
+  '/some/path/to/sensor.py',
+];
+
 describe('humidityThing Tests', () => {
 
   let aMonitorSpy;
@@ -156,6 +171,16 @@ describe('humidityThing Tests', () => {
 
       expect(flags['tls-key-path']).toBeDefined();
     });
+
+    test('Then the sensor-script-path flag is defined', ()=> {
+
+      expect(flags['sensor-script-path']).toBeDefined();
+    });
+
+    test('Then sensor-script-path flag has the correct default value', () => {
+
+      expect(flags['sensor-script-path'].default).toEqual('/usr/local/etc/sensor/sensor.py');
+    });
   });
 
   describe('When running the command', () => {
@@ -163,7 +188,7 @@ describe('humidityThing Tests', () => {
     oclifTest
         .stdout()
         .stderr()
-        .do(() => cmd.run(['aTopicName', 'aThingName', '--broker', 'test']))
+        .do(() => cmd.run(['aTopicName', 'aThingName', '--broker', 'test', '--sensor', 'test']))
         .it('Then the monitor factory creates the monitor with the specified broker', () => {
 
           expect(monitorFactory.journalEntry(0)).toMatchObject({
@@ -187,16 +212,7 @@ describe('humidityThing Tests', () => {
     oclifTest
         .stdout()
         .stderr()
-        .do(() => cmd.run([
-          'aThingName',
-          'aTopicName',
-          '--sensor',
-          'test',
-          '--tls-cert-path',
-          '/some/cert/path',
-          '--tls-key-path',
-          'whatever',
-        ]))
+        .do(() => cmd.run(ARG_V))
         .it('Then the monitor factory creates the monitor with the tls cert path option provided', () => {
 
           expect(monitorFactory.journalEntry(0)).toMatchObject({
@@ -209,16 +225,7 @@ describe('humidityThing Tests', () => {
     oclifTest
         .stdout()
         .stderr()
-        .do(() => cmd.run([
-          'aThingName',
-          'aTopicName',
-          '--sensor',
-          'test',
-          '--tls-key-path',
-          '/some/key/path',
-          '--tls-cert-path',
-          '/some/cert/path',
-        ]))
+        .do(() => cmd.run(ARG_V))
         .it('Then the monitor factory creates the monitor with the tls key path option provided', () => {
 
           expect(monitorFactory.journalEntry(0)).toMatchObject({
@@ -231,18 +238,7 @@ describe('humidityThing Tests', () => {
     oclifTest
         .stdout()
         .stderr()
-        .do(() => cmd.run([
-          'aThingName',
-          'aTopicName',
-          '--sensor',
-          'test',
-          '--tls-key-path',
-          '/some/key/path',
-          '--tls-cert-path',
-          '/some/cert/path',
-          '--log-publications-file',
-          '/some/path/to/out.log',
-        ]))
+        .do(() => cmd.run(ARG_V))
         .it('Then the monitor factory creates the monitor with the logfile path provided', () => {
 
           expect(monitorFactory.journalEntry(0)).toMatchObject({
@@ -255,7 +251,20 @@ describe('humidityThing Tests', () => {
     oclifTest
         .stdout()
         .stderr()
-        .do(() => cmd.run(['aThingName', 'aTopicName', '--broker', 'test']))
+        .do(() => cmd.run(ARG_V))
+        .it('Then the monitor factory creates the monitor with the sensorScriptPath provided', () => {
+
+          expect(monitorFactory.journalEntry(0)).toMatchObject({
+            options: {
+              sensorScriptPath: '/some/path/to/sensor.py',
+            },
+          });
+        });
+
+    oclifTest
+        .stdout()
+        .stderr()
+        .do(() => cmd.run(['aThingName', 'aTopicName', '--broker', 'test', '--sensor', 'test']))
         .it('Then the monitor is started', () => {
 
           expect(aMonitorSpy.startCalled()).toEqual(true);
