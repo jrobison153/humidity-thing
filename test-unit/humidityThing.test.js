@@ -47,6 +47,25 @@ const ARG_V = [
   '/some/path/to/sensor.py',
 ];
 
+const MQTT_ARG_V = [
+  'aThingName',
+  'aTopicName',
+  '--sensor',
+  'test',
+  '--broker',
+  'mqtt',
+  '--broker-address',
+  'http://broker.com:3000',
+  '--tls-key-path',
+  '/some/key/path',
+  '--tls-cert-path',
+  '/some/cert/path',
+  '--log-publications-file',
+  '/some/path/to/out.log',
+  '--sensor-script-path',
+  '/some/path/to/sensor.py',
+];
+
 describe('humidityThing Tests', () => {
 
   let aMonitorSpy;
@@ -74,40 +93,6 @@ describe('humidityThing Tests', () => {
   });
 
   describe('Arg and Flag checks', () => {
-
-    test('Then the broker flag is available', () => {
-
-      expect(flags.broker).toBeDefined();
-    });
-
-    test('Then the valid broker options are set', () => {
-
-      const brokerValidOptions = cmd.flags.broker.options;
-
-      expect(brokerValidOptions).toEqual(['test', 'mqtt']);
-    });
-
-    test('Then the broker flag is defaulted', () => {
-
-      expect(flags.broker.default).toEqual('mqtt');
-    });
-
-    test('Then the sensor flag is available', () => {
-
-      expect(flags.sensor).toBeDefined();
-    });
-
-    test('Then the valid sensor options are set', () => {
-
-      const sensorValidOptions = cmd.flags.sensor.options;
-
-      expect(sensorValidOptions).toEqual(['test', 'dht22']);
-    });
-
-    test('Then the sensor flag is defaulted', () => {
-
-      expect(flags.sensor.default).toEqual('dht22');
-    });
 
     test('Then the topicName arg is available', () => {
 
@@ -147,39 +132,61 @@ describe('humidityThing Tests', () => {
       expect(args[1].name).toEqual('topicName');
     });
 
-    test('Then publications log file flag is defined', () => {
+    const flagExistenceTests = [
+      'broker',
+      'broker-address',
+      'log-publications-file',
+      'sensor',
+      'sensor-period',
+      'sensor-script-path',
+      'tls-cert-path',
+      'tls-key-path',
+    ];
 
-      expect(flags['log-publications-file']).toBeDefined();
+    test.each(flagExistenceTests)('Then the %s flag is defined', (flagName) => {
+      expect(flags[flagName]).toBeDefined();
     });
 
-    test('Then sensor-period flag is defined', () => {
+    const flagValidValueTests = [
+      [
+        'broker',
+        ['test', 'mqtt'],
+      ],
+      [
+        'sensor',
+        ['test', 'dht22'],
+      ],
+    ];
 
-      expect(flags['sensor-period']).toBeDefined();
+    test.each(flagValidValueTests)('Then the valid %s options are set', (flag, expectedOptions) => {
+
+      const validOptions = cmd.flags[flag].options;
+
+      expect(validOptions).toEqual(expectedOptions);
     });
 
-    test('Then sensor-period flag has the correct default value', () => {
+    const flagDefaultValueTests = [
+      [
+        'broker',
+        'mqtt',
+      ],
+      [
+        'sensor',
+        'dht22',
+      ],
+      [
+        'sensor-period',
+        60000,
+      ],
+      [
+        'sensor-script-path',
+        '/usr/local/etc/sensor/sensor.py',
+      ],
+    ];
 
-      expect(flags['sensor-period'].default).toEqual(60000);
-    });
+    test.each(flagDefaultValueTests)('Then the %s flag is defaulted', (flag, expectedDefaultValue) => {
 
-    test('Then the tls-cert-path flag is defined', ()=> {
-
-      expect(flags['tls-cert-path']).toBeDefined();
-    });
-
-    test('Then the tls-key-path flag is defined', ()=> {
-
-      expect(flags['tls-key-path']).toBeDefined();
-    });
-
-    test('Then the sensor-script-path flag is defined', ()=> {
-
-      expect(flags['sensor-script-path']).toBeDefined();
-    });
-
-    test('Then sensor-script-path flag has the correct default value', () => {
-
-      expect(flags['sensor-script-path'].default).toEqual('/usr/local/etc/sensor/sensor.py');
+      expect(flags[flag].default).toEqual(expectedDefaultValue);
     });
   });
 
@@ -194,6 +201,20 @@ describe('humidityThing Tests', () => {
           expect(monitorFactory.journalEntry(0)).toMatchObject({
             command: 'create',
             brokerId: 'test',
+          });
+        });
+
+    oclifTest
+        .stdout()
+        .stderr()
+        .do(() => cmd.run(MQTT_ARG_V))
+        .it('Then the monitor factory creates the monitor with the broker address', () => {
+
+          expect(monitorFactory.journalEntry(0)).toMatchObject({
+            command: 'create',
+            options: {
+              brokerAddress: 'http://broker.com:3000',
+            },
           });
         });
 
@@ -293,7 +314,7 @@ describe('humidityThing Tests', () => {
         .stderr()
         .do(() =>
           cmd.run(['aThingName', 'aTopicName', '--broker', 'test', '--sensor', 'test', '--sensor-period', '10']))
-        .it('Then the monitor is provided the monitor options on start', () => {
+        .it('Then the monitor is provided the sensor period on start', () => {
 
           expect(aMonitorSpy.startOptions().sensorPeriod).toEqual('10');
         });

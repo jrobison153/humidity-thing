@@ -2,7 +2,14 @@ const childProcess = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const aedes = require('aedes')();
+const net = require('net');
+const mqtt = require('mqtt');
 const rimraf = require('rimraf');
+
+const MQTT_BROKER_PORT = 1883;
+const MQTT_BROKER_URL = `mqtt://localhost:${MQTT_BROKER_PORT}`;
+const TOPIC_NAME = 'myTopic';
 
 const timer = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -52,32 +59,102 @@ const _removeDirSafe = (filePath) => {
   });
 };
 
-const readFile = (tempPublicationLogFile) => {
+const startMqttBroker = () => {
+
+  return new Promise((resolve) => {
+
+    const server = net.createServer(aedes.handle);
+
+    server.listen(MQTT_BROKER_PORT, function() {
+      console.log('server started and listening on port ', MQTT_BROKER_PORT);
+      resolve(server);
+    });
+  });
+};
+
+const connectToTestMqttBroker = (mqttBrokerUrl) => {
 
   return new Promise((resolve, reject) => {
 
-    fs.readFile(tempPublicationLogFile, 'utf8', (err, data) => {
+    const mqttClient = mqtt.connect(mqttBrokerUrl);
 
-      if (err) {
-        reject(err);
+    mqttClient.on('connect', () => {
+      console.log('Publish Humidity Test MQTT Client Connected to Test Broker');
+      resolve(mqttClient);
+    });
+
+    mqttClient.on('error', (e) => {
+      console.log(`Publish Humidity Test MQTT Client failed to connect to the Test Broker ${e.toString()}`);
+      reject(new Error('Failed to connect to Test Broker'));
+    });
+  });
+};
+
+const subscribeToTopic = (mqttClient, topicName) => {
+
+  return new Promise((resolve, reject) => {
+
+    mqttClient.subscribe(topicName, {}, (err) => {
+
+      if (!err) {
+        console.log(`Subscription to topic ${topicName} successful`);
+        resolve();
       } else {
-        resolve(data);
+        reject(new Error(`Subscription to topic ${topicName} with reason ${err.toString()}`));
       }
+    });
+  });
+};
+
+const shutDownMqttBroker = () => {
+
+  return new Promise((resolve) => {
+
+    aedes.close(() => {
+      resolve();
+    });
+  });
+};
+
+const shutDownServer = async (mqttBroker) => {
+
+  return new Promise((resolve) => {
+
+    mqttBroker.close(()=>{
+      resolve();
     });
   });
 };
 
 describe('Publish Humidity Acceptance Tests', () => {
 
-  describe('When thing is running', () => {
+  describe('When thing is running with dht22 sensor and mqtt broker', () => {
 
     let humidityThingProcess;
     let tempPublicationLogFile;
     let stdOutBuffer;
     let stdErrBuffer;
+    let mqttClient;
+    let receivedMessages;
+    let server;
+    let processNeedsToBeKilled;
+    let humidityThingProcessExitCode;
 
     beforeAll(async () => {
 
+      server = await startMqttBroker();
+
+      mqttClient = await connectToTestMqttBroker(MQTT_BROKER_URL);
+
+      await subscribeToTopic(mqttClient, TOPIC_NAME);
+
+      receivedMessages = [];
+      mqttClient.on('message', (topic, message) => {
+
+        if (topic === TOPIC_NAME) {
+          receivedMessages.push(message);
+        }
+      });
 
       tempPublicationLogFile = await _createTempFile();
 
@@ -85,8 +162,11 @@ describe('Publish Humidity Acceptance Tests', () => {
       const binLocation = require.resolve('../bin/run');
       const args = [
         'aThing',
-        'myTopic',
-        '--broker=test',
+        TOPIC_NAME,
+        '--broker=mqtt',
+        `--broker-address=${MQTT_BROKER_URL}`,
+        '--tls-cert-path=/some/bogus/cert/path',
+        '--tls-key-path=/some/bogus/key/path',
         '--sensor=dht22',
         `--sensor-script-path=${testSensorScriptPath}`,
         '--sensor-period=10',
@@ -95,6 +175,9 @@ describe('Publish Humidity Acceptance Tests', () => {
 
       stdOutBuffer = '';
       stdErrBuffer = '';
+
+      processNeedsToBeKilled = true;
+      humidityThingProcessExitCode = 0;
 
       humidityThingProcess = childProcess.spawn(binLocation, args);
 
@@ -113,7 +196,9 @@ describe('Publish Humidity Acceptance Tests', () => {
 
       humidityThingProcess.on('close', (code) => {
 
-        stdOutBuffer = `\nHumidity process ended with code ${code}\n`;
+        humidityThingProcessExitCode = code;
+        processNeedsToBeKilled = false;
+        stdOutBuffer = `${stdOutBuffer}\nHumidity process ended with code ${code}\n`;
       });
 
       await timer(500);
@@ -124,17 +209,26 @@ describe('Publish Humidity Acceptance Tests', () => {
       console.log(stdOutBuffer);
       console.log(stdErrBuffer);
 
-      humidityThingProcess.kill('SIGTERM');
+      if (processNeedsToBeKilled) {
+        humidityThingProcess.kill('SIGTERM');
+      }
+
+      await shutDownMqttBroker();
+      await shutDownServer(server);
 
       const dirToRemove = path.dirname(tempPublicationLogFile);
       await _removeDirSafe(dirToRemove);
     });
 
+    test('Then the command starts w/o issues', () => {
+
+      expect(humidityThingProcessExitCode).toEqual(0);
+    });
+
     test('Then the current humidity value is published', async () => {
 
-      const rawPublishedData = await readFile(tempPublicationLogFile);
-
-      expect(rawPublishedData).toMatch(/.*"humidity-percentage":\s*54\.3.*/);
+      expect(receivedMessages.length).toBeGreaterThan(0);
+      expect(receivedMessages[0]['humidity-percentage']).toEqual(54.3);
     });
   });
 });

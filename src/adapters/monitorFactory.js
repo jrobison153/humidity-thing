@@ -10,6 +10,12 @@ const factory = () => {
   let _monitor;
   let _journal = [];
 
+  const BROKER_ADDRESS_OPTION = 'brokerAddress';
+  const LOG_FILE_OPTION = 'logFile';
+  const SENSOR_SCRIPT_PATH_OPTION = 'sensorScriptPath';
+  const TLS_CERT_PATH_OPTION = 'tlsCertPath';
+  const TLS_KEY_PATH_OPTION = 'tlsKeyPath';
+
   const TEST_SENSOR = 'test';
   const DHT22_SENSOR = 'dht22';
   const TEST_BROKER = 'test';
@@ -36,18 +42,20 @@ const factory = () => {
   // TODO these validations should be moved to the MQTT broker as part of construction
   const _validateRequiredBrokerOptions = (options) => {
 
+    const requiredOptions = [TLS_CERT_PATH_OPTION, TLS_KEY_PATH_OPTION, BROKER_ADDRESS_OPTION];
+
+    requiredOptions.forEach((requiredOption) => {
+
+      if (!options[requiredOption]) {
+        throw new Error(`Required option ${requiredOption} is missing`);
+      }
+    });
+
     const brokerOptions = {};
 
-    if (!options.tlsCertPath) {
-      throw new Error('Required option tlsCertPath missing');
-    }
-
-    if (!options.tlsKeyPath) {
-      throw new Error('Required option tlsKeyPath missing');
-    }
-
-    brokerOptions.tlsCertPath = options.tlsCertPath;
-    brokerOptions.tlsKeyPath = options.tlsKeyPath;
+    brokerOptions.tlsCertPath = options[TLS_CERT_PATH_OPTION];
+    brokerOptions.tlsKeyPath = options[TLS_KEY_PATH_OPTION];
+    brokerOptions.brokerAddress = options[BROKER_ADDRESS_OPTION];
 
     return brokerOptions;
   };
@@ -68,7 +76,7 @@ const factory = () => {
       throw new Error(`Invalid Broker Id '${brokerId}'`);
     }
 
-    brokerOptions.logFile = options.logFile;
+    brokerOptions.logFile = options[LOG_FILE_OPTION];
 
     return await theBroker(brokerOptions);
   };
@@ -84,7 +92,7 @@ const factory = () => {
       throw new Error(`Invalid Sensor Id '${sensorId}'`);
     }
 
-    return await theSensor(options.sensorScriptPath);
+    return await theSensor(options[SENSOR_SCRIPT_PATH_OPTION]);
   };
 
   return {

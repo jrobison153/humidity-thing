@@ -224,6 +224,7 @@ describe('monitorFactory tests', () => {
           logFile: '/path/to/out.log',
           tlsCertPath: '/some/cert/path',
           tlsKeyPath: '/some/key/path',
+          brokerAddress: 'http://a.broker.com:8888',
         };
       });
 
@@ -249,31 +250,32 @@ describe('monitorFactory tests', () => {
           expect(monitor.providedBroker().createOptions().tlsKeyPath).toEqual('/some/key/path');
         });
 
+        test('Then the brokerAddress option is provided to the broker on construction', async () => {
+
+          expect(monitor.providedBroker().createOptions().brokerAddress).toEqual('http://a.broker.com:8888');
+        });
+
         test('Then the logFile option is provided to the broker on construction', async () => {
 
           expect(monitor.providedBroker().createOptions().logFile).toEqual('/path/to/out.log');
         });
       });
 
-      describe('And the tlsCertPath required option is missing', () => {
+      describe.each([
+        'tlsCertPath',
+        'tlsKeyPath',
+        'brokerAddress',
+      ])('And required configuration parameter %s is missing', (opt) => {
 
         test('Then an error is thrown', () => {
 
-          delete options.tlsCertPath;
+          delete options[opt];
 
           const monitorCreatedPromise = monitorFactory.create('mqtt', 'test', options);
-          return expect(monitorCreatedPromise).rejects.toThrowError(/.*Required option tlsCertPath missing.*/);
-        });
-      });
 
-      describe('And the tlsKeyPath required option is missing', () => {
+          const regExp = new RegExp(`.*Required option ${opt} is missing.*`);
 
-        test('Then an error is thrown', () => {
-
-          delete options.tlsKeyPath;
-
-          const monitorCreatedPromise = monitorFactory.create('mqtt', 'test', options);
-          return expect(monitorCreatedPromise).rejects.toThrowError(/.*Required option tlsKeyPath missing.*/);
+          return expect(monitorCreatedPromise).rejects.toThrowError(regExp);
         });
       });
     });

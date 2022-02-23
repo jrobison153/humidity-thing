@@ -30,6 +30,7 @@ class HumidityThingCommand extends Command {
       tlsCertPath: flags['tls-cert-path'],
       tlsKeyPath: flags['tls-key-path'],
       sensorScriptPath: flags['sensor-script-path'],
+      brokerAddress: flags['broker-address'],
     };
 
     const monitor = await monitorFactory.create(flags.broker, flags.sensor, createOptions);
@@ -58,6 +59,10 @@ HumidityThingCommand.flags = {
     default: 'mqtt',
     description: 'Select a broker implementation, must implement the broker interface',
     options: ['test', 'mqtt'],
+  }),
+
+  'broker-address': flags.string({
+    description: 'Address for the message broker, required if mqtt broker is specified',
   }),
 
   'log-publications-file': flags.string({
