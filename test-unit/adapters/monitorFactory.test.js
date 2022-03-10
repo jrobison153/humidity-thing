@@ -36,12 +36,24 @@ const dummyBroker = (id) => {
   };
 };
 
+const mQttBrokerSpy = (id) => {
+
+  return async (brokerAddress, options) => {
+
+    return {
+      id: () => id,
+      brokerAddress: () => brokerAddress,
+      createOptions: () => options,
+    };
+  };
+};
+
 const setupSensorAndBrokerDoubles = () => {
 
   const dummyTestSensor = dummySensor('dummyTestSensor');
   const dummyDht22Sensor = dummySensor('dummyDht22Sensor');
   const dummyTestBroker = dummyBroker('dummyTestBroker');
-  const dummyMqttBroker = dummyBroker('dummyMqttBroker');
+  const dummyMqttBroker = mQttBrokerSpy('dummyMqttBroker');
 
   monitorFactory.setSensor('test', dummyTestSensor);
   monitorFactory.setSensor('dht22', dummyDht22Sensor);
@@ -188,7 +200,6 @@ describe('monitorFactory tests', () => {
       setupSensorAndBrokerDoubles();
 
       monitorFactory.overrideMonitor(monitorSpy);
-      monitorFactory.clearJournal();
     });
 
     describe('And the test broker is specified', () => {
@@ -221,10 +232,12 @@ describe('monitorFactory tests', () => {
       beforeEach(() => {
 
         options = {
+          brokerAddress: 'http://a.broker.com:8888',
           logFile: '/path/to/out.log',
+          thingName: 'a-test-thing',
           tlsCertPath: '/some/cert/path',
           tlsKeyPath: '/some/key/path',
-          brokerAddress: 'http://a.broker.com:8888',
+          tlsCaPath: '/some/ca/path',
         };
       });
 
@@ -240,6 +253,11 @@ describe('monitorFactory tests', () => {
           expect(monitor.providedBroker().id()).toEqual('dummyMqttBroker');
         });
 
+        test('Then the brokerAddress option is provided to the broker on construction', async () => {
+
+          expect(monitor.providedBroker().brokerAddress()).toEqual('http://a.broker.com:8888');
+        });
+
         test('Then the tlsCertPath option is provided to the broker on construction', async () => {
 
           expect(monitor.providedBroker().createOptions().tlsCertPath).toEqual('/some/cert/path');
@@ -250,32 +268,19 @@ describe('monitorFactory tests', () => {
           expect(monitor.providedBroker().createOptions().tlsKeyPath).toEqual('/some/key/path');
         });
 
-        test('Then the brokerAddress option is provided to the broker on construction', async () => {
+        test('Then the tlsCaPath option is provided to the broker on construction', async () => {
 
-          expect(monitor.providedBroker().createOptions().brokerAddress).toEqual('http://a.broker.com:8888');
+          expect(monitor.providedBroker().createOptions().tlsCaPath).toEqual('/some/ca/path');
+        });
+
+        test('Then the thingName option is provided to the broker on construction', () => {
+
+          expect(monitor.providedBroker().createOptions().thingName).toEqual('a-test-thing');
         });
 
         test('Then the logFile option is provided to the broker on construction', async () => {
 
           expect(monitor.providedBroker().createOptions().logFile).toEqual('/path/to/out.log');
-        });
-      });
-
-      describe.each([
-        'tlsCertPath',
-        'tlsKeyPath',
-        'brokerAddress',
-      ])('And required configuration parameter %s is missing', (opt) => {
-
-        test('Then an error is thrown', () => {
-
-          delete options[opt];
-
-          const monitorCreatedPromise = monitorFactory.create('mqtt', 'test', options);
-
-          const regExp = new RegExp(`.*Required option ${opt} is missing.*`);
-
-          return expect(monitorCreatedPromise).rejects.toThrowError(regExp);
         });
       });
     });
@@ -312,52 +317,6 @@ describe('monitorFactory tests', () => {
 
         expect(monitor.providedSensor().sensorScriptPath).toEqual('/some/path/script.py');
       });
-    });
-
-    test('Then a journal entry is added with the command set to create', async () => {
-
-      await monitorFactory.create('test', 'test');
-      expect(monitorFactory.journalEntry(0).command).toEqual('create');
-    });
-
-    test('Then a journal entry is added with the brokerId set', async () => {
-
-      await monitorFactory.create('test', 'test');
-      expect(monitorFactory.journalEntry(0).brokerId).toEqual('test');
-    });
-
-    test('Then a journal entry is added with the sensorId set', async () => {
-
-      await monitorFactory.create('test', 'test');
-      expect(monitorFactory.journalEntry(0).sensorId).toEqual('test');
-    });
-
-    test('Then the options are recorded in the journal', async () => {
-
-      const options = {foo: 'bar'};
-      await monitorFactory.create('test', 'test', options);
-
-      expect(monitorFactory.journalEntry(0).options).toEqual(options);
-    });
-
-    test('Then the journal is appended to for each create operation', async () => {
-
-      await monitorFactory.create('test', 'test');
-      await monitorFactory.create('test', 'test');
-      await monitorFactory.create('test', 'test');
-
-      expect(monitorFactory.journalEntry(2).command).toEqual('create');
-    });
-
-    test('Then the journal can be cleared', async () => {
-
-      await monitorFactory.create('test', 'test');
-      await monitorFactory.create('test', 'test');
-      await monitorFactory.create('test', 'test');
-
-      monitorFactory.clearJournal();
-
-      expect(monitorFactory.journalEntry(0)).toBeUndefined();
     });
 
     describe('And the broker id is invalid', () => {

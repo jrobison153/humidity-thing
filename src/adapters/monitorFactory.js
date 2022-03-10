@@ -1,3 +1,8 @@
+/**
+ * monitorFactory module.
+ * @module adapters/monitorFactory
+ */
+
 const clone = require('clone');
 const testBroker = require('./testBroker');
 const mqttBroker = require('./mqttBroker');
@@ -5,16 +10,22 @@ const testSensor = require('./testSensor');
 const dht22Sensor = require('./dht22Sensor');
 const defaultMonitor = require('../policy/defaultMonitor');
 
+/**
+ * @function constructor
+ *
+ * @return {Object} monitorFactory
+ */
 const factory = () => {
 
   let _monitor;
-  let _journal = [];
 
   const BROKER_ADDRESS_OPTION = 'brokerAddress';
   const LOG_FILE_OPTION = 'logFile';
   const SENSOR_SCRIPT_PATH_OPTION = 'sensorScriptPath';
   const TLS_CERT_PATH_OPTION = 'tlsCertPath';
   const TLS_KEY_PATH_OPTION = 'tlsKeyPath';
+  const TLS_CA_PATH_OPTION = 'tlsCaPath';
+  const THING_NAME_OPTION = 'thingName';
 
   const TEST_SENSOR = 'test';
   const DHT22_SENSOR = 'dht22';
@@ -36,49 +47,48 @@ const factory = () => {
   };
 
   let _sensorImpls = clone(_defaultSensorImpls);
-
   let _brokerImpls = clone(_defaultBrokerImpls);
 
-  // TODO these validations should be moved to the MQTT broker as part of construction
-  const _validateRequiredBrokerOptions = (options) => {
+  const _isValidBrokerId = (brokerId) => {
 
-    const requiredOptions = [TLS_CERT_PATH_OPTION, TLS_KEY_PATH_OPTION, BROKER_ADDRESS_OPTION];
-
-    requiredOptions.forEach((requiredOption) => {
-
-      if (!options[requiredOption]) {
-        throw new Error(`Required option ${requiredOption} is missing`);
-      }
-    });
-
-    const brokerOptions = {};
-
-    brokerOptions.tlsCertPath = options[TLS_CERT_PATH_OPTION];
-    brokerOptions.tlsKeyPath = options[TLS_KEY_PATH_OPTION];
-    brokerOptions.brokerAddress = options[BROKER_ADDRESS_OPTION];
-
-    return brokerOptions;
+    return VALID_BROKER_IDS.indexOf(brokerId) >= 0;
   };
 
   const _createBroker = async (brokerId, options) => {
 
-    let theBroker;
-    let brokerOptions = {};
+    const commonBrokerOptions = {
+      logFile: options[LOG_FILE_OPTION],
+    };
 
-    if (VALID_BROKER_IDS.indexOf(brokerId) >= 0) {
+    let initializedBroker;
 
-      theBroker = _brokerImpls[brokerId];
+    if (_isValidBrokerId(brokerId)) {
 
       if (brokerId === 'mqtt') {
-        brokerOptions = _validateRequiredBrokerOptions(options);
+
+        const mqttBroker = _brokerImpls[brokerId];
+
+        const mqttBrokerOptions = {
+          tlsCertPath: options[TLS_CERT_PATH_OPTION],
+          tlsKeyPath: options[TLS_KEY_PATH_OPTION],
+          tlsCaPath: options[TLS_CA_PATH_OPTION],
+          thingName: options[THING_NAME_OPTION],
+          ...commonBrokerOptions,
+        };
+
+        const brokerAddress = options[BROKER_ADDRESS_OPTION];
+
+        initializedBroker = await mqttBroker(brokerAddress, mqttBrokerOptions);
+      } else {
+
+        const genericBroker = _brokerImpls[brokerId];
+        initializedBroker = await genericBroker(commonBrokerOptions);
       }
     } else {
       throw new Error(`Invalid Broker Id '${brokerId}'`);
     }
 
-    brokerOptions.logFile = options[LOG_FILE_OPTION];
-
-    return await theBroker(brokerOptions);
+    return initializedBroker;
   };
 
   const _createSensor = async (sensorId, options) => {
@@ -134,25 +144,23 @@ const factory = () => {
     /**
      * Creates a monitor configured to use the specified broker and sensor implementations.
      *
-     * @param{string} brokerId - valid values ['test', 'mqtt']
-     * @param{string} sensorId - valid values ['test', 'dht22']
+     * @param {('test' | 'mqtt')} brokerId - identifies which broker type to initialize the monitor with
+     * @param {('test' | 'dht22')} sensorId - identifies which sensor type to initialize the monitor with
      *
-     * @param{object }options
-     *  logFile - String: path to log file
-     *  tlsCertPath - String: path to the tls public certificate for the mqtt broker
-     *  tlsKeyPath - String: path to the tls private key for the mqtt broker
-     *  sensorScriptPath - String: path to the dht22 sensor Python 3 script,
+     * @param {object} options
+     * @param {string} [options.brokerAddress] - broker address, required if brokerId is 'mqtt'
+     * @param {string} [options.logFile] - path to log file
+     * @param {string} [options.sensorScriptPath] - path to the dht22 sensor Python 3 script,
+     * required if sensorId is 'dht22'
+     * @param {string} [options.tlsCaPath] - path to the TLS root certificate authority for the mqtt broker
+     * @param {string} [options.tlsCertPath] - path to the TLS public certificate for the mqtt broker,
+     * required if brokerId is 'mqtt'
+     * @param {string} [options.tlsKeyPath] - path to the TLS private key for the mqtt broker,
+     * required if brokerId is 'mqtt'
      *
      * @return {Promise<Monitor>}
      */
     create: async (brokerId, sensorId, options = {}) => {
-
-      _journal.push({
-        command: 'create',
-        brokerId,
-        sensorId,
-        options,
-      });
 
       const initializedBroker = await _createBroker(brokerId, options);
       const initializedSensor = await _createSensor(sensorId, options);
@@ -163,12 +171,6 @@ const factory = () => {
 
       return await _monitor(initializedBroker, initializedSensor);
     },
-
-    clearJournal: () => {
-      _journal = [];
-    },
-
-    journalEntry: (index) => _journal[index],
 
     overrideMonitor: (monitor) => {
 

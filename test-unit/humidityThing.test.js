@@ -1,46 +1,20 @@
 const oclifTest = require('@oclif/test').test;
 const cmd = require('../src/index');
-const monitorFactory = require('../src/adapters/monitorFactory');
-
-const monitorSpy = () => {
-
-  let _startCalled = false;
-  let _broker;
-  let _startOptions;
-
-  return {
-
-    start: async (options) => {
-
-      _startOptions = options;
-      _startCalled = true;
-
-      return Promise.resolve();
-    },
-
-    brokerId: () => _broker.id(),
-
-    // ======================== Interface defined above this line ===============
-
-    broker: (broker) => {
-      _broker = broker;
-    },
-
-    startCalled: () => _startCalled,
-
-    startOptions: () => _startOptions,
-  };
-};
+const monitorFactorySpy = require('../test-doubles/monitorFactorySpy');
 
 const ARG_V = [
   'aThingName',
   'aTopicName',
   '--sensor',
   'test',
+  '--broker',
+  'test',
   '--tls-key-path',
   '/some/key/path',
   '--tls-cert-path',
   '/some/cert/path',
+  '--tls-ca-path',
+  '/some/ca/path',
   '--log-publications-file',
   '/some/path/to/out.log',
   '--sensor-script-path',
@@ -68,7 +42,6 @@ const MQTT_ARG_V = [
 
 describe('humidityThing Tests', () => {
 
-  let aMonitorSpy;
   let flags;
   let args;
 
@@ -76,20 +49,6 @@ describe('humidityThing Tests', () => {
 
     args = cmd.args;
     flags = cmd.flags;
-  });
-
-  beforeEach(() => {
-
-    aMonitorSpy = monitorSpy();
-
-    const monitor = (broker) => {
-
-      aMonitorSpy.broker(broker);
-      return aMonitorSpy;
-    };
-
-    monitorFactory.overrideMonitor(monitor);
-    monitorFactory.clearJournal();
   });
 
   describe('Arg and Flag checks', () => {
@@ -141,6 +100,7 @@ describe('humidityThing Tests', () => {
       'sensor-script-path',
       'tls-cert-path',
       'tls-key-path',
+      'tls-ca-path',
     ];
 
     test.each(flagExistenceTests)('Then the %s flag is defined', (flagName) => {
@@ -192,131 +152,124 @@ describe('humidityThing Tests', () => {
 
   describe('When running the command', () => {
 
-    oclifTest
-        .stdout()
-        .stderr()
-        .do(() => cmd.run(['aTopicName', 'aThingName', '--broker', 'test', '--sensor', 'test']))
-        .it('Then the monitor factory creates the monitor with the specified broker', () => {
+    describe('And the monitor factory is not provided', () => {
 
-          expect(monitorFactory.journalEntry(0)).toMatchObject({
-            command: 'create',
-            brokerId: 'test',
+      oclifTest
+          .stdout()
+          .stderr()
+          .do(() => cmd.run([]))
+          .exit(1)
+          .it('Then an error is returned', (ctx) => {
           });
-        });
+    });
 
-    oclifTest
-        .stdout()
-        .stderr()
-        .do(() => cmd.run(MQTT_ARG_V))
-        .it('Then the monitor factory creates the monitor with the broker address', () => {
+    describe('And a monitor factory has been provided', () => {
 
-          expect(monitorFactory.journalEntry(0)).toMatchObject({
-            command: 'create',
-            options: {
-              brokerAddress: 'http://broker.com:3000',
-            },
+      let theMonitorFactorySpy;
+
+      beforeAll(() => {
+
+        theMonitorFactorySpy = monitorFactorySpy();
+
+        cmd.overrideMonitorFactory(theMonitorFactorySpy);
+      });
+
+      oclifTest
+          .stdout()
+          .stderr()
+          .do(() => cmd.run(ARG_V))
+          .it('Then the monitor factory is passed the specified broker', () => {
+
+            expect(theMonitorFactorySpy.brokerId()).toEqual('test');
           });
-        });
 
-    oclifTest
-        .stdout()
-        .stderr()
-        .do(() => cmd.run(['aThingName', 'aTopicName', '--sensor', 'test', '--broker', 'test']))
-        .it('Then the monitor factory creates the monitor with the specified sensor', () => {
+      oclifTest
+          .stdout()
+          .stderr()
+          .do(() => cmd.run(ARG_V))
+          .it('Then the monitor factory is passed the specified sensor', () => {
 
-          expect(monitorFactory.journalEntry(0)).toMatchObject({
-            command: 'create',
-            sensorId: 'test',
+            expect(theMonitorFactorySpy.sensorId()).toEqual('test');
           });
-        });
 
-    oclifTest
-        .stdout()
-        .stderr()
-        .do(() => cmd.run(ARG_V))
-        .it('Then the monitor factory creates the monitor with the tls cert path option provided', () => {
+      const providedOptionValueTests = [
+        [
+          'tlsCertPath',
+          '/some/cert/path',
+        ],
+        [
+          'tlsKeyPath',
+          '/some/key/path',
+        ],
+        [
+          'tlsCaPath',
+          '/some/ca/path',
+        ],
+        [
+          'logFile',
+          '/some/path/to/out.log',
+        ],
+        [
+          'sensorScriptPath',
+          '/some/path/to/sensor.py',
+        ],
+        [
+          'thingName',
+          'aThingName',
+        ],
+      ];
 
-          expect(monitorFactory.journalEntry(0)).toMatchObject({
-            options: {
-              tlsCertPath: '/some/cert/path',
-            },
+      test.each(providedOptionValueTests)('Then the monitor factory is passed the %s as an option',
+          (optionName, expectedOptionValue) => {
+
+            expect(theMonitorFactorySpy.options()[optionName]).toEqual(expectedOptionValue);
           });
-        });
 
-    oclifTest
-        .stdout()
-        .stderr()
-        .do(() => cmd.run(ARG_V))
-        .it('Then the monitor factory creates the monitor with the tls key path option provided', () => {
+      oclifTest
+          .stdout()
+          .stderr()
+          .do(() => cmd.run(MQTT_ARG_V))
+          .it('Then the monitor factory is passed the broker address as an option', () => {
 
-          expect(monitorFactory.journalEntry(0)).toMatchObject({
-            options: {
-              tlsKeyPath: '/some/key/path',
-            },
+            expect(theMonitorFactorySpy.options().brokerAddress).toEqual('http://broker.com:3000');
           });
-        });
 
-    oclifTest
-        .stdout()
-        .stderr()
-        .do(() => cmd.run(ARG_V))
-        .it('Then the monitor factory creates the monitor with the logfile path provided', () => {
+      oclifTest
+          .stdout()
+          .stderr()
+          .do(() => cmd.run(['aThingName', 'aTopicName', '--broker', 'test', '--sensor', 'test']))
+          .it('Then the monitor is started', () => {
 
-          expect(monitorFactory.journalEntry(0)).toMatchObject({
-            options: {
-              logFile: '/some/path/to/out.log',
-            },
+            expect(theMonitorFactorySpy.monitorSpy().startCalled()).toEqual(true);
           });
-        });
 
-    oclifTest
-        .stdout()
-        .stderr()
-        .do(() => cmd.run(ARG_V))
-        .it('Then the monitor factory creates the monitor with the sensorScriptPath provided', () => {
+      oclifTest
+          .stdout()
+          .stderr()
+          .do(() => cmd.run(['aThingName', 'aTopicName', '--broker', 'test', '--sensor', 'test']))
+          .it('Then the monitor is provided the topic name on start', () => {
 
-          expect(monitorFactory.journalEntry(0)).toMatchObject({
-            options: {
-              sensorScriptPath: '/some/path/to/sensor.py',
-            },
+            expect(theMonitorFactorySpy.monitorSpy().startOptions().topicName).toEqual('aTopicName');
           });
-        });
 
-    oclifTest
-        .stdout()
-        .stderr()
-        .do(() => cmd.run(['aThingName', 'aTopicName', '--broker', 'test', '--sensor', 'test']))
-        .it('Then the monitor is started', () => {
+      oclifTest
+          .stdout()
+          .stderr()
+          .do(() => cmd.run(['aThingName', 'aTopicName', '--broker', 'test', '--sensor', 'test']))
+          .it('Then the monitor is provided the thing name on start', () => {
 
-          expect(aMonitorSpy.startCalled()).toEqual(true);
-        });
+            expect(theMonitorFactorySpy.monitorSpy().startOptions().thingName).toEqual('aThingName');
+          });
 
-    oclifTest
-        .stdout()
-        .stderr()
-        .do(() => cmd.run(['aThingName', 'aTopicName', '--broker', 'test', '--sensor', 'test']))
-        .it('Then the monitor is provided the topic name on start', () => {
+      oclifTest
+          .stdout()
+          .stderr()
+          .do(() =>
+            cmd.run(['aThingName', 'aTopicName', '--broker', 'test', '--sensor', 'test', '--sensor-period', '10']))
+          .it('Then the monitor is provided the sensor period on start', () => {
 
-          expect(aMonitorSpy.startOptions().topicName).toEqual('aTopicName');
-        });
-
-    oclifTest
-        .stdout()
-        .stderr()
-        .do(() => cmd.run(['aThingName', 'aTopicName', '--broker', 'test', '--sensor', 'test']))
-        .it('Then the monitor is provided the thing name on start', () => {
-
-          expect(aMonitorSpy.startOptions().thingName).toEqual('aThingName');
-        });
-
-    oclifTest
-        .stdout()
-        .stderr()
-        .do(() =>
-          cmd.run(['aThingName', 'aTopicName', '--broker', 'test', '--sensor', 'test', '--sensor-period', '10']))
-        .it('Then the monitor is provided the sensor period on start', () => {
-
-          expect(aMonitorSpy.startOptions().sensorPeriod).toEqual('10');
-        });
+            expect(theMonitorFactorySpy.monitorSpy().startOptions().sensorPeriod).toEqual('10');
+          });
+    });
   });
 });

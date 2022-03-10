@@ -1,7 +1,7 @@
 /**
  * A sensor based on execution of a python script
+ * @module adapters/dht22Sensor
  *
- * TODO: This sensor isn't really dht22 specific, it could really just be the Python3 Executor
  */
 
 const childProcess = require('child_process');
@@ -10,8 +10,10 @@ const fs = require('fs');
 const MAX_ERR_MSG_LENGTH = 150;
 const SENSOR_ID = 'dht22';
 
+// TODO: This sensor isn't really dht22 specific, it could really just be the Python3 Executor
+
 /**
- *
+ * @function constructor
  * @param{string} sensorReadScriptPath - file path to the python script that will read the sensor values.
  * The script has a required interface, there are zero inputs and the output must be a single json object written
  * to stdout.
@@ -53,8 +55,17 @@ module.exports = async (sensorReadScriptPath, process = childProcess, fileSystem
 
   return {
 
+    /**
+     *
+     * @return {string} - the ID of this sensor
+     */
     id: () => SENSOR_ID,
 
+    /**
+     * Takes a sensor reading and returns the result
+     *
+     * @return {Promise}  The object result of the sensor reading
+     */
     read: () => {
 
       return new Promise((resolve, reject) => {

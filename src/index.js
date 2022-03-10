@@ -1,10 +1,11 @@
 const {Command, flags} = require('@oclif/command');
-const monitorFactory = require('./adapters/monitorFactory');
 
 /**
  * HumidityThingCommand
  */
 class HumidityThingCommand extends Command {
+
+  // static factory;
 
   static args = [
     {
@@ -22,18 +23,24 @@ class HumidityThingCommand extends Command {
   // eslint-disable-next-line require-jsdoc
   async run() {
 
+    if (!HumidityThingCommand.factory) {
+      this.error('An implementation of the MonitorFactory must be provided', {exit: 1} );
+    }
+
     const {flags} = this.parse(HumidityThingCommand);
     const {args} = this.parse(HumidityThingCommand);
 
     const createOptions = {
+      brokerAddress: flags['broker-address'],
       logFile: flags['log-publications-file'],
+      sensorScriptPath: flags['sensor-script-path'],
+      thingName: args.thingName,
       tlsCertPath: flags['tls-cert-path'],
       tlsKeyPath: flags['tls-key-path'],
-      sensorScriptPath: flags['sensor-script-path'],
-      brokerAddress: flags['broker-address'],
+      tlsCaPath: flags['tls-ca-path'],
     };
 
-    const monitor = await monitorFactory.create(flags.broker, flags.sensor, createOptions);
+    const monitor = await HumidityThingCommand.factory.create(flags.broker, flags.sensor, createOptions);
 
     const monitorOptions = {
       sensorPeriod: flags['sensor-period'],
@@ -43,6 +50,17 @@ class HumidityThingCommand extends Command {
 
     await monitor.start(monitorOptions);
   }
+
+  /**
+   * Allow override of the default factory used to create the monitor
+   *
+   * @param {MonitorFactory} factory
+   */
+  static overrideMonitorFactory(factory) {
+
+    this.factory = factory;
+  }
+
 }
 
 HumidityThingCommand.description = `Start the thing`;
@@ -94,6 +112,11 @@ HumidityThingCommand.flags = {
 
   'tls-key-path': flags.string({
     description: 'Path to TLS key that will be provided to the broker during connection',
+  }),
+
+  'tls-ca-path': flags.string({
+    description: 'Path to a TLS Certificate Authority (CA) Root Certificate that will be provided' +
+        ' to the broker during connection.',
   }),
 };
 

@@ -1,2 +1,6 @@
 #!/usr/bin/env node
-require('..').run().catch(require('@oclif/errors/handle'));
+const factory = require('../src/adapters/monitorFactory');
+const cmd = require('..');
+
+cmd.overrideMonitorFactory(factory);
+cmd.run().catch(require('@oclif/errors/handle'));
